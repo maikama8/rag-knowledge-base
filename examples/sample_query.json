@@ -1,0 +1,33 @@
+{
+  "question": "How long is the refund window?",
+  "answer": "The refund window is 30 days from the purchase date. [1]",
+  "claims": [
+    {
+      "text": "The refund window is 30 days from the purchase date.",
+      "citations": [
+        {
+          "source": "handbook.md",
+          "chunk_id": "a0a1ca15ef93a328:1",
+          "chunk_index": 1,
+          "page": null,
+          "score": 0.343,
+          "excerpt": "The refund window is 30 days from the purchase date. Refunds go back to the original payment method.",
+          "label": "handbook.md, chunk 2"
+        }
+      ]
+    }
+  ],
+  "citations": [
+    {
+      "source": "handbook.md",
+      "chunk_id": "a0a1ca15ef93a328:1",
+      "chunk_index": 1,
+      "page": null,
+      "score": 0.343,
+      "excerpt": "The refund window is 30 days from the purchase date. Refunds go back to the original payment method.",
+      "label": "handbook.md, chunk 2"
+    }
+  ],
+  "provider": "offline",
+  "refused": false
+}

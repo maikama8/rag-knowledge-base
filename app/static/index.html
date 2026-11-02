@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAG Knowledge Base</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230e6b5c'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --ink: #1d1914;
+      --muted: #6d645a;
+      --line: #e3dacb;
+      --card: #fffdf8;
+      --accent: #0e6b5c;
+      --accent-ink: #f4fbf8;
+      --danger: #8c2f2a;
+      --shadow: 0 1px 2px rgba(40, 30, 15, 0.04), 0 12px 32px rgba(40, 30, 15, 0.05);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 400px at 10% -10%, #efe6d4 0%, transparent 55%),
+        var(--bg);
+      font: 16px/1.5 "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    header, main, footer { width: min(1080px, calc(100% - 32px)); margin-inline: auto; }
+    header { padding: 36px 0 8px; }
+    header h1 {
+      margin: 0 0 6px;
+      font-family: Georgia, "Iowan Old Style", Palatino, serif;
+      font-size: 34px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+    header p { margin: 0; max-width: 62ch; color: var(--muted); }
+    .providers { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    main {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) 1fr;
+      gap: 20px;
+      padding: 20px 0 40px;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    h2 { margin: 0 0 12px; font-size: 16px; letter-spacing: 0.01em; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    input[type="file"], textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    textarea { min-height: 96px; padding: 10px 12px; resize: vertical; }
+    button, .file-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      background: var(--accent);
+      color: var(--accent-ink);
+      font: inherit;
+      font-weight: 600;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+    button.secondary, button.ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      font-weight: 550;
+    }
+    button:disabled { opacity: 0.55; cursor: progress; }
+    .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+    .status { min-height: 1.4em; margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+    .status.error { color: var(--danger); }
+    ul.docs { list-style: none; padding: 0; margin: 14px 0 0; }
+    ul.docs li {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+    ul.docs button { padding: 4px 8px; font-size: 13px; }
+    .doc-name { font-weight: 600; }
+    .doc-meta { color: var(--muted); font-size: 13px; }
+    .answer {
+      white-space: pre-wrap;
+      font-size: 17px;
+      margin: 0;
+    }
+    .empty { color: var(--muted); margin: 0; }
+    ol.cites { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    ol.cites li {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #fbfaf6;
+    }
+    .cite-label { font-weight: 650; }
+    .cite-excerpt { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    footer { padding: 0 0 32px; color: var(--muted); font-size: 14px; }
+    footer a { color: var(--accent); }
+    @media (max-width: 800px) {
+      main { grid-template-columns: 1fr; }
+      header h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RAG Knowledge Base</h1>
+    <p>Index a document, then ask a question. Every claim in the answer cites the file and the chunk or page it came from.</p>
+    <div class="providers" id="providers"></div>
+  </header>
+  <main>
+    <section>
+      <h2>Library</h2>
+      <label for="files">PDF, Markdown, text, or DOCX</label>
+      <input id="files" type="file" accept=".pdf,.md,.markdown,.txt,.docx,text/plain" multiple>
+      <div class="row">
+        <button id="ingest" type="button">Index files</button>
+      </div>
+      <p class="status" id="ingest-status" role="status"></p>
+      <ul class="docs" id="documents"></ul>
+    </section>
+    <section>
+      <h2>Question</h2>
+      <label for="question">Ask against the indexed files</label>
+      <textarea id="question" placeholder="How long is the refund window?"></textarea>
+      <div class="row">
+        <button id="ask" type="button">Ask</button>
+      </div>
+      <p class="status" id="ask-status" role="status"></p>
+      <div id="result" style="margin-top: 16px">
+        <p class="empty">Answers show up here, with a source on every claim.</p>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <a href="https://github.com/maikama8">Abdulrasheed Oseni</a>, Zarachtech.
+    <a href="/docs">API docs</a>
+  </footer>
+  <script>
+    const providers = document.querySelector("#providers");
+    const documents = document.querySelector("#documents");
+    const ingestStatus = document.querySelector("#ingest-status");
+    const askStatus = document.querySelector("#ask-status");
+    const result = document.querySelector("#result");
+
+    function setStatus(node, message, isError) {
+      node.textContent = message || "";
+      node.classList.toggle("error", Boolean(isError));
+    }
+
+    async function readError(response) {
+      try {
+        const body = await response.json();
+        if (body && typeof body.detail === "string") return body.detail;
+      } catch (_error) {
+        /* The body was not JSON. */
+      }
+      return "Request failed (" + response.status + ").";
+    }
+
+    function renderDocuments(items) {
+      documents.replaceChildren();
+      if (!items.length) {
+        return;
+      }
+      for (const item of items) {
+        const li = document.createElement("li");
+        const text = document.createElement("div");
+        const name = document.createElement("div");
+        name.className = "doc-name";
+        name.textContent = item.source;
+        const meta = document.createElement("div");
+        meta.className = "doc-meta";
+        meta.textContent = item.chunks + (item.chunks === 1 ? " chunk" : " chunks");
+        text.append(name, meta);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "ghost";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => removeDocument(item.document_id, item.source));
+        li.append(text, remove);
+        documents.append(li);
+      }
+    }
+
+    async function refresh() {
+      const [healthResponse, docsResponse] = await Promise.all([
+        fetch("/health"),
+        fetch("/documents"),
+      ]);
+      if (!healthResponse.ok || !docsResponse.ok) {
+        setStatus(ingestStatus, "Could not reach the API.", true);
+        return;
+      }
+      const health = await healthResponse.json();
+      const listed = await docsResponse.json();
+      providers.replaceChildren();
+      const fileLabel = health.documents === 1 ? "file" : "files";
+      const chunkLabel = health.chunks === 1 ? "chunk" : "chunks";
+      for (const label of [
+        "embeddings: " + health.embedding_provider,
+        "answers: " + health.llm_provider,
+        "store: " + health.vector_store,
+        health.documents + " " + fileLabel + " / " + health.chunks + " " + chunkLabel,
+      ]) {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = label;
+        providers.append(pill);
+      }
+      renderDocuments(listed.documents || []);
+    }
+
+    async function removeDocument(documentId, source) {
+      setStatus(ingestStatus, "Removing " + source + "...", false);
+      const response = await fetch("/documents/" + documentId, { method: "DELETE" });
+      if (!response.ok) {
+        setStatus(ingestStatus, await readError(response), true);
+        return;
+      }
+      setStatus(ingestStatus, "Removed " + source + ".", false);
+      await refresh();
+    }
+
+    document.querySelector("#ingest").addEventListener("click", async () => {
+      const input = document.querySelector("#files");
+      const button = document.querySelector("#ingest");
+      if (!input.files.length) {
+        setStatus(ingestStatus, "Choose at least one file.", true);
+        return;
+      }
+      const body = new FormData();
+      for (const file of input.files) body.append("files", file);
+      button.disabled = true;
+      setStatus(ingestStatus, "Indexing...", false);
+      try {
+        const response = await fetch("/ingest", { method: "POST", body });
+        if (!response.ok) {
+          setStatus(ingestStatus, await readError(response), true);
+          return;
+        }
+        const payload = await response.json();
+        const names = payload.documents.map((item) => item.source).join(", ");
+        setStatus(ingestStatus, "Indexed " + names + ".", false);
+        input.value = "";
+        await refresh();
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelector("#ask").addEventListener("click", async () => {
+      const question = document.querySelector("#question").value.trim();
+      const button = document.querySelector("#ask");
+      if (!question) {
+        setStatus(askStatus, "Enter a question.", true);
+        return;
+      }
+      button.disabled = true;
+      setStatus(askStatus, "Searching...", false);
+      result.replaceChildren();
+      try {
+        const response = await fetch("/query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question }),
+        });
+        if (!response.ok) {
+          setStatus(askStatus, await readError(response), true);
+          return;
+        }
+        const payload = await response.json();
+        setStatus(askStatus, payload.refused ? "Nothing in the index matched." : "", false);
+        const answer = document.createElement("p");
+        answer.className = "answer";
+        answer.textContent = payload.answer;
+        result.append(answer);
+        if (payload.citations && payload.citations.length) {
+          const list = document.createElement("ol");
+          list.className = "cites";
+          payload.citations.forEach((citation, index) => {
+            const item = document.createElement("li");
+            const label = document.createElement("div");
+            label.className = "cite-label";
+            label.textContent = "[" + (index + 1) + "] " + citation.label;
+            const excerpt = document.createElement("p");
+            excerpt.className = "cite-excerpt";
+            excerpt.textContent = citation.excerpt;
+            item.append(label, excerpt);
+            list.append(item);
+          });
+          result.append(list);
+        }
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelector("#question").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        document.querySelector("#ask").click();
+      }
+    });
+
+    refresh();
+  </script>
+</body>
+</html>
